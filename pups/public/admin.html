@@ -10,8 +10,18 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Site config: set the API host for a separate backend -->
+  <script src="/public/site-config.js"></script>
   <!-- Socket.io client -->
-  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    (function () {
+      var b = (window.PUPS_API_BASE || '').replace(/\/+$/, '');
+      var s = document.createElement('script');
+      s.src = b ? b + '/socket.io/socket.io.js' : '/socket.io/socket.io.js';
+      s.onerror = function () { window.__socketUnavailable = true; };
+      document.head.appendChild(s);
+    })();
+  </script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -597,6 +607,7 @@
 
   <!-- JAVASCRIPT APP LOGIC -->
   <script>
+    const API_BASE = (window.PUPS_API_BASE || '').replace(/\/+$/, '');
     let authToken = localStorage.getItem('plush_admin_token') || null;
     let activeSessionId = null;
     let activeChats = [];
@@ -609,7 +620,7 @@
     });
 
     function checkAuthSession() {
-      fetch('/api/auth/session', {
+      fetch(API_BASE + '/api/auth/session', {
         headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
       })
         .then(r => r.json())
@@ -629,7 +640,7 @@
       const errEl = document.getElementById('login-error');
       errEl.classList.add('hidden');
 
-      fetch('/api/auth/login', {
+      fetch(API_BASE + '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code })
@@ -652,7 +663,7 @@
     }
 
     function handleLogout() {
-      fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+      fetch(API_BASE + '/api/auth/logout', { method: 'POST' }).finally(() => {
         authToken = null;
         localStorage.removeItem('plush_admin_token');
         showLogin();
@@ -684,7 +695,7 @@
 
     function initSocket() {
       if (!window.io) return;
-      socket = io();
+      socket = API_BASE ? io(API_BASE, { transports: ['websocket', 'polling'] }) : io();
       socket.emit('join:admin', { adminToken: authToken, businessId: 'biz_001' });
 
       socket.on('chat:message', (msg) => {
@@ -720,7 +731,7 @@
 
     // --- CHATS LOGIC ---
     function fetchChats() {
-      fetch('/api/admin/chats', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/chats', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(data => {
           activeChats = data.chats || [];
@@ -825,7 +836,7 @@
       const text = input.value.trim();
       if (!text || !activeSessionId) return;
 
-      fetch(`/api/admin/chats/${activeSessionId}/reply`, {
+      fetch(API_BASE + `/api/admin/chats/${activeSessionId}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({ text })
@@ -844,7 +855,7 @@
       if (!session) return;
       const newMode = session.mode === 'human' ? 'ai' : 'human';
 
-      fetch(`/api/admin/chats/${activeSessionId}/mode`, {
+      fetch(API_BASE + `/api/admin/chats/${activeSessionId}/mode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({ mode: newMode })
@@ -855,7 +866,7 @@
 
     function deleteActiveChat() {
       if (!confirm('Are you sure you want to delete this chat session?')) return;
-      fetch(`/api/admin/chats/${activeSessionId}`, {
+      fetch(API_BASE + `/api/admin/chats/${activeSessionId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${authToken}` }
       })
@@ -869,7 +880,7 @@
 
     // --- PUPPIES LOGIC ---
     function fetchPuppies() {
-      fetch('/api/admin/puppies', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/puppies', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(puppies => {
           const grid = document.getElementById('puppies-grid');
@@ -951,7 +962,7 @@
         description: document.getElementById('pup-desc').value
       };
 
-      const url = id ? `/api/admin/puppies/${id}` : '/api/admin/puppies';
+      const url = API_BASE + (id ? `/api/admin/puppies/${id}` : '/api/admin/puppies');
       const method = id ? 'PUT' : 'POST';
 
       fetch(url, {
@@ -967,7 +978,7 @@
 
     function deletePuppy(id) {
       if (!confirm('Are you sure you want to remove this puppy listing?')) return;
-      fetch(`/api/admin/puppies/${id}`, {
+      fetch(API_BASE + `/api/admin/puppies/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${authToken}` }
       })
@@ -976,7 +987,7 @@
 
     // --- ORDERS LOGIC ---
     function fetchOrders() {
-      fetch('/api/admin/orders', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/orders', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(orders => {
           const tbody = document.getElementById('orders-table-body');
@@ -1010,7 +1021,7 @@
     function updateOrderStatus(id) {
       const status = prompt('Enter new order status (e.g., Pending, Deposit Paid, Completed, Cancelled):');
       if (!status) return;
-      fetch(`/api/admin/orders/${id}`, {
+      fetch(API_BASE + `/api/admin/orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({ status })
@@ -1020,7 +1031,7 @@
 
     // --- CUSTOMERS LOGIC ---
     function fetchCustomers() {
-      fetch('/api/admin/customers', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/customers', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(customers => {
           const tbody = document.getElementById('customers-table-body');
@@ -1042,7 +1053,7 @@
 
     // --- PAYMENTS LOGIC ---
     function fetchPayments() {
-      fetch('/api/admin/payments', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/payments', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(payments => {
           const tbody = document.getElementById('payments-table-body');
@@ -1065,7 +1076,7 @@
 
     // --- AI KNOWLEDGE LOGIC ---
     function fetchAIKnowledge() {
-      fetch('/api/admin/knowledge', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/knowledge', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(k => {
           document.getElementById('ai-system-prompt').value = k.system_prompt || '';
@@ -1112,7 +1123,7 @@
         system_prompt: document.getElementById('ai-system-prompt').value,
         faqs: getFaqsFromUI()
       };
-      fetch('/api/admin/knowledge', {
+      fetch(API_BASE + '/api/admin/knowledge', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify(body)
@@ -1121,7 +1132,7 @@
 
     // --- BUSINESS INFO LOGIC ---
     function fetchBusinessInfo() {
-      fetch('/api/admin/business', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/business', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(b => {
           document.getElementById('biz-name').value = b.name || '';
@@ -1145,7 +1156,7 @@
         health_guarantee: document.getElementById('biz-health').value,
         shipping_policy: document.getElementById('biz-shipping').value
       };
-      fetch('/api/admin/business', {
+      fetch(API_BASE + '/api/admin/business', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify(body)
@@ -1154,7 +1165,7 @@
 
     // --- WHATSAPP LOGIC ---
     function fetchWhatsAppSettings() {
-      fetch('/api/admin/whatsapp', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/whatsapp', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(w => {
           document.getElementById('wa-enabled').checked = w.enabled !== false;
@@ -1170,7 +1181,7 @@
         phone_number: document.getElementById('wa-phone').value,
         default_message: document.getElementById('wa-default-msg').value
       };
-      fetch('/api/admin/whatsapp', {
+      fetch(API_BASE + '/api/admin/whatsapp', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify(body)
@@ -1179,7 +1190,7 @@
 
     // --- WIDGET SETTINGS LOGIC ---
     function fetchWidgetSettings() {
-      fetch('/api/admin/chat-settings', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/chat-settings', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(s => {
           document.getElementById('widget-title').value = s.widget_title || '';
@@ -1195,7 +1206,7 @@
         primary_color: document.getElementById('widget-color').value,
         welcome_message: document.getElementById('widget-welcome').value
       };
-      fetch('/api/admin/chat-settings', {
+      fetch(API_BASE + '/api/admin/chat-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify(body)
@@ -1204,7 +1215,7 @@
 
     // --- SECURITY SETTINGS LOGIC ---
     function fetchAdminSettings() {
-      fetch('/api/admin/settings', { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(API_BASE + '/api/admin/settings', { headers: { 'Authorization': `Bearer ${authToken}` } })
         .then(r => r.json())
         .then(s => {
           document.getElementById('inactivity-timeout-input').value = s.inactivity_timeout_mins || 30;
@@ -1216,7 +1227,7 @@
       const newCode = document.getElementById('new-admin-code').value;
       const inactivityTimeoutMins = document.getElementById('inactivity-timeout-input').value;
 
-      fetch('/api/admin/settings', {
+      fetch(API_BASE + '/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
         body: JSON.stringify({ newCode, inactivityTimeoutMins })

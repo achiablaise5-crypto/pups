@@ -2,11 +2,13 @@
   if (window.PlushChatWidgetInitialized) return;
   window.PlushChatWidgetInitialized = true;
 
-  const BUSINESS_ID = 'biz_001';
+  const API_BASE = (window.PUPS_API_BASE || '').replace(/\/+$/, '');
+  const BUSINESS_ID = window.PUPS_BUSINESS_ID || 'biz_001';
+  const api = (p) => API_BASE + p;
 
   if (!window.io) {
     const s = document.createElement('script');
-    s.src = '/socket.io/socket.io.js';
+    s.src = API_BASE ? api('/socket.io/socket.io.js') : '/socket.io/socket.io.js';
     s.onload = initWidget;
     s.onerror = initWidget;
     document.head.appendChild(s);
@@ -17,7 +19,9 @@
   function initWidget() {
     let socket = null;
     if (window.io) {
-      try { socket = window.io(); } catch (e) { }
+      try {
+        socket = API_BASE ? window.io(API_BASE, { transports: ['websocket', 'polling'] }) : window.io();
+      } catch (e) { }
     }
 
     let conversationId = localStorage.getItem('plush_chat_conversation_id');
@@ -151,13 +155,13 @@
 
     // ── Puppy data cache (fetched once from public config) ─────────────────
     let puppiesCache = [];
-    fetch('/api/public/config?businessId=' + BUSINESS_ID)
+    fetch(api('/api/public/config?businessId=' + BUSINESS_ID))
       .then(r => r.json()).catch(() => ({}));
     // Fetch puppies via admin endpoint not available publicly,
     // so we embed the card data at render-time via /api/public/config puppies extension.
     // We'll pull puppies from a dedicated lightweight endpoint added below.
 
-    fetch('/api/public/puppies')
+    fetch(api('/api/public/puppies'))
       .then(r => r.json())
       .then(data => { puppiesCache = data || []; })
       .catch(() => { });
@@ -194,7 +198,7 @@
     });
 
     // ── Init / restore session ────────────────────────────────────────────
-    fetch('/api/public/chat/init', {
+    fetch(api('/api/public/chat/init'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ conversationId, sessionToken, name: customerName, businessId: BUSINESS_ID })
@@ -250,7 +254,7 @@
         text,
         timestamp: new Date().toISOString()
       });
-      fetch('/api/public/chat/send', {
+      fetch(api('/api/public/chat/send'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
