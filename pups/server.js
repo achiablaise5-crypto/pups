@@ -108,6 +108,12 @@ const requireCustomerSession = (req, res, next) => {
   next();
 };
 
+// --- HEALTH CHECK ---
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
 // --- AUTH API ROUTES ---
 
 app.post('/api/auth/login', (req, res) => {

@@ -2,7 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const DB_FILE = path.join(__dirname, 'db.json');
+// Where db.json lives. Defaults to the app directory (local dev / git).
+// Set DATA_DIR on hosts with an ephemeral filesystem to point at a
+// persistent volume, e.g. /var/data on Render.
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DB_FILE = path.join(DATA_DIR, 'db.json');
+const SEED_FILE = path.join(__dirname, 'db.json');
+
+if (DATA_DIR !== __dirname) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(DB_FILE) && fs.existsSync(SEED_FILE)) {
+    fs.copyFileSync(SEED_FILE, DB_FILE);
+    console.log('Seeded persistent database from bundled db.json');
+  }
+}
 
 // Default initial state
 const defaultData = {
