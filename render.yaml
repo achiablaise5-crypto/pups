@@ -1,0 +1,36 @@
+# Plush Pups API — Render Blueprint
+#
+# This file must sit at the REPOSITORY ROOT for Render to read it.
+# Netlify ignores it (Netlify only reads netlify.toml), so adding it here
+# does not affect the already-deployed static site.
+#
+# What this deploys: ONLY the chat API in ./pups-api.
+# The ./pups directory holds the static site that Netlify publishes; it is
+# never executed by this service.
+#
+# Do NOT create this as a Render "Static Site" — that type cannot run a Node
+# server and has no WebSocket support. It must be a Web Service.
+
+services:
+  - type: web
+    name: plush-pups-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: pups-api
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      # Set these in the Render dashboard after the first deploy.
+      - key: ADMIN_CODE
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
